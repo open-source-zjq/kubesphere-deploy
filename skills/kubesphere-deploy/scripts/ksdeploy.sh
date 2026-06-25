@@ -339,7 +339,9 @@ cmd_pipelines() {
 
 cmd_params() {
   local devops=$1 pipeline=$2
-  [ -n "${devops:-}" ] && [ -n "${pipeline:-}" ] || die "usage: ksdeploy.sh params <devops> <pipeline>"
+  if [ -z "${devops:-}" ] || [ -z "${pipeline:-}" ]; then
+    die "usage: ksdeploy.sh params <devops> <pipeline>"
+  fi
   pipeline_params_json "$devops" "$pipeline" \
     | jq -r '.[] | "\(.name)\t[\(.type // "string")]\tdefault=\(.default_value // "")\t\(.description // "")"'
 }
@@ -513,7 +515,7 @@ main() {
   load_env
 
   local cmd=${1:-help}
-  [ $# -gt 0 ] && shift || true
+  if [ $# -gt 0 ]; then shift; fi
 
   case "$cmd" in
     help|-h|--help) usage; return 0 ;;

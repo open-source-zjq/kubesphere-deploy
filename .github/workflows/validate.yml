@@ -12,8 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tooling
-        run: sudo apt-get update && sudo apt-get install -y shellcheck jq
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Install shellcheck (pinned)
+        env:
+          SC_VER: v0.11.0
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SC_VER}/shellcheck-${SC_VER}.linux.x86_64.tar.xz" -o sc.tar.xz
+          tar -xJf sc.tar.xz
+          sudo install "shellcheck-${SC_VER}/shellcheck" /usr/local/bin/shellcheck
+          rm -rf sc.tar.xz "shellcheck-${SC_VER}"
+          shellcheck --version
 
       - name: Lint shell scripts
         run: shellcheck skills/kubesphere-deploy/scripts/ksdeploy.sh
