@@ -373,8 +373,17 @@ cmd_runs() {
   devops=$(resolve_devops_or_env "$devops") || exit 1
   local q="pipelines/$pipeline/pipelineruns?limit=20&backward=true"
   [ -n "$branch" ] && q="$q&branch=$(urlencode "$branch")"
+  # Tolerate both response shapes: KubeSphere CRD objects (.items[].metadata /
+  # .status) and BlueOcean-style run objects (top-level .name/.id/.result/.state,
+  # sometimes a bare array). state falls back to .status.phase on newer clusters.
   devops_request GET "$devops" "$q" \
-    | jq -r '.items[]? | "\(.metadata.name)\t\(.status.state // "-")\t\(.status.result // "-")\t\(.metadata.creationTimestamp // "-")"'
+    | jq -r '(if type=="array" then . else (.items? // [.]) end)
+             | .[]?
+             | [ (.name // .id // .metadata.name // "-"),
+                 (.state // .status.state // .status.phase // "-"),
+                 (.result // .status.result // "-"),
+                 (.startTime // .metadata.creationTimestamp // "-") ]
+             | @tsv'
 }
 
 cmd_status() {
@@ -393,8 +402,25 @@ cmd_status() {
     *) die "usage: ksdeploy.sh status [<devops>] <run>" ;;
   esac
   devops=$(resolve_devops_or_env "$devops") || exit 1
+  # Read state/result from whichever fields the cluster populates:
+  #   - older builds: .status.state / .status.result
+  #   - newer builds: .status.phase (+ conditions) and the Jenkins run blob in
+  #     the devops.kubesphere.io/jenkins-pipelinerun-status annotation.
   devops_request GET "$devops" "pipelineruns/$run" \
-    | jq '{name: .metadata.name, state: .status.state, result: .status.result, startTime: .status.startTime, completionTime: .status.completionTime}'
+    | jq '(.metadata.annotations["devops.kubesphere.io/jenkins-pipelinerun-status"]) as $raw
+          | (($raw // "{}") | (fromjson? // {})) as $j
+          | {
+              name:           .metadata.name,
+              runId:          (.metadata.annotations["devops.kubesphere.io/jenkins-pipelinerun-id"] // $j.id),
+              state:          (.status.state  // .status.phase // $j.state),
+              result:         (.status.result // $j.result
+                               // ([.status.conditions[]? | select(.type=="Succeeded")][0]
+                                   | if . == null then null
+                                     elif .status=="True" then "SUCCESS"
+                                     else (.reason // "UNKNOWN") end)),
+              startTime:      (.status.startTime      // $j.startTime),
+              completionTime: (.status.completionTime // $j.endTime)
+            }'
 }
 
 cmd_logs() {
@@ -414,16 +440,35 @@ cmd_logs() {
     *) die "usage: ksdeploy.sh logs [<devops>] <pipeline> <run> [--branch=<branch>]" ;;
   esac
   devops=$(resolve_devops_or_env "$devops") || exit 1
-  # Logs only exist on the v1alpha2 path, even for v1alpha3 runs. Multi-branch
-  # pipelines use a branch-scoped path.
-  local base="/kapis/devops.kubesphere.io/v1alpha2/namespaces/$devops/pipelines/$pipeline"
-  local path
-  if [ -n "$branch" ]; then
-    path="$base/branches/$(urlencode "$branch")/runs/$run/log?start=0"
-  else
-    path="$base/runs/$run/log?start=0"
+  # Raw console logs live on the v1alpha2 path on most clusters (run = build id
+  # or run name; multi-branch pipelines are branch-scoped). Some newer KubeSphere
+  # builds don't expose that route (it 404/406s) — fall back to the v1alpha3
+  # nodedetails stage/step breakdown, where `run` is the pipelinerun name.
+  local rel="runs/$run/log?start=0"
+  [ -n "$branch" ] && rel="branches/$(urlencode "$branch")/runs/$run/log?start=0"
+  local seg body
+  for seg in "namespaces/$devops" "devops/$devops"; do
+    if body=$(ks_request GET "/kapis/devops.kubesphere.io/v1alpha2/$seg/pipelines/$pipeline/$rel" "" "text/plain" 2>/dev/null) \
+         && [ -n "$body" ]; then
+      case "$body" in
+        '{'*|'['*) : ;;  # JSON error body slipped through — try the fallback
+        *) printf '%s\n' "$body"; return 0 ;;
+      esac
+    fi
+  done
+
+  local nd
+  if nd=$(ks_request GET "/kapis/devops.kubesphere.io/v1alpha3/namespaces/$devops/pipelineruns/$run/nodedetails" "" "application/json" 2>/dev/null) \
+       && [ "$(printf '%s' "$nd" | jq -r 'type' 2>/dev/null)" = "array" ]; then
+    log "raw text log unavailable on this cluster; showing stage/step summary (v1alpha3 nodedetails):"
+    printf '%s' "$nd" | jq -r '
+      .[]
+      | "[\(.result // .state // "?")] \(.displayName)  (\(((.durationInMillis // 0)/1000)|floor)s)",
+        (.steps[]? | "    - \(.displayName)\(if .displayDescription then ": " + .displayDescription else "" end)  [\(.result // .state // "?")]")'
+    return 0
   fi
-  ks_request GET "$path" "" "text/plain"
+
+  die "could not fetch logs for run '$run' (tried v1alpha2 text log and v1alpha3 nodedetails)"
 }
 
 cmd_run() {

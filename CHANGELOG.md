@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `status`, `runs`, and `logs` now tolerate clusters that report run state under
+  `.status.phase` / the `devops.kubesphere.io/jenkins-pipelinerun-*` annotations
+  and return runs in BlueOcean shape (top-level `.name`/`.id`/`.result`/`.state`),
+  in addition to the older `.status.state` / `.status.result` CRD fields — they
+  no longer print `null`/`-` on such clusters.
+- `logs` falls back to the v1alpha3 `pipelineruns/<run>/nodedetails` stage/step
+  summary when the v1alpha2 raw-log route is unavailable (404/406 on some builds).
+
 ## [0.1.0] - 2026-06-25
 
 ### Added

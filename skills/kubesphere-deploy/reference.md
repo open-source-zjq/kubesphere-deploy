@@ -164,3 +164,5 @@ Notes:
 | TLS / certificate errors | Set `KS_INSECURE=1` for self-signed certs (development only). |
 | `missing dependency: jq` | Install jq: `brew install jq` (macOS) / `apt-get install jq` (Debian/Ubuntu). |
 | Network unreachable | Confirm VPN / firewall and that `KS_URL` is reachable from this host. |
+| `status`/`runs` show `null`/`-` | The cluster reports state under `.status.phase` / the `devops.kubesphere.io/jenkins-pipelinerun-*` annotations (or BlueOcean run objects); the script reads both shapes — update to the latest `ksdeploy.sh` if you still see `null`. |
+| `logs` prints a stage/step summary instead of raw text | The v1alpha2 raw-log route is unavailable on this cluster (404/406); the script falls back to the v1alpha3 `pipelineruns/<run>/nodedetails` breakdown. Pass the pipelinerun **name** (not the build id) and open the console URL for full per-step text. |
