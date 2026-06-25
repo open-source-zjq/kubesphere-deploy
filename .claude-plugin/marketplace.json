@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "kubesphere-deploy",
+  "owner": {
+    "name": "open-source-zjq",
+    "email": "open-source-zjq@users.noreply.github.com"
+  },
+  "description": "KubeSphere DevOps deployment skill for Claude Code.",
+  "plugins": [
+    {
+      "name": "kubesphere-deploy",
+      "source": "./",
+      "description": "Trigger and monitor KubeSphere DevOps pipeline runs to deploy applications.",
+      "category": "devops",
+      "keywords": ["kubesphere", "kubernetes", "devops", "pipeline", "deploy"]
+    }
+  ]
+}

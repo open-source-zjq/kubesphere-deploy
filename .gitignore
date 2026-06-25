@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------
+# Credentials — NEVER commit these
+# ---------------------------------------------------------------------------
+# Real config (only the *.example template is tracked)
+*.env
+!*.env.example
+kubesphere.env
+.env
+.env.*
+!.env.example
+
+# Tokens, kubeconfigs, keys, certs
+*.token
+kubeconfig
+*.kubeconfig
+*.pem
+*.key
+*.crt
+secrets/
+.secrets/
+
+# ---------------------------------------------------------------------------
+# OS / editor / tooling cruft
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.log

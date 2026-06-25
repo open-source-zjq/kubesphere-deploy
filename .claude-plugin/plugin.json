@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "kubesphere-deploy",
+  "version": "0.1.0",
+  "description": "Trigger and monitor KubeSphere DevOps pipeline runs from Claude Code to deploy applications.",
+  "author": {
+    "name": "open-source-zjq",
+    "email": "open-source-zjq@users.noreply.github.com",
+    "url": "https://github.com/open-source-zjq"
+  },
+  "homepage": "https://github.com/open-source-zjq/kubesphere-deploy",
+  "repository": "https://github.com/open-source-zjq/kubesphere-deploy",
+  "license": "MIT",
+  "keywords": [
+    "kubesphere",
+    "kubernetes",
+    "devops",
+    "pipeline",
+    "ci-cd",
+    "deploy"
+  ]
+}

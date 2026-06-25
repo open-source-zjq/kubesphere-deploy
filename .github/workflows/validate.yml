@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tooling
+        run: sudo apt-get update && sudo apt-get install -y shellcheck jq
+
+      - name: Lint shell scripts
+        run: shellcheck skills/kubesphere-deploy/scripts/ksdeploy.sh
+
+      - name: Parse shell scripts
+        run: bash -n skills/kubesphere-deploy/scripts/ksdeploy.sh
+
+      - name: Validate JSON manifests
+        run: |
+          jq empty .claude-plugin/plugin.json
+          jq empty .claude-plugin/marketplace.json
+
+      - name: Check SKILL.md frontmatter
+        run: |
+          set -euo pipefail
+          f=skills/kubesphere-deploy/SKILL.md
+          test "$(head -n1 "$f")" = "---" || { echo "SKILL.md must start with YAML frontmatter (---)"; exit 1; }
+          grep -q '^name:' "$f"        || { echo "SKILL.md frontmatter missing 'name:'"; exit 1; }
+          grep -q '^description:' "$f" || { echo "SKILL.md frontmatter missing 'description:'"; exit 1; }
+          echo "SKILL.md frontmatter OK"
+
+      - name: Ensure no secrets are committed
+        run: |
+          set -euo pipefail
+          # Any tracked file ending in .env is a real env file (.env.example ends in .example).
+          if git ls-files | grep -E '\.env$'; then
+            echo "A real env file is tracked — only *.env.example should be committed"; exit 1
+          fi
+          echo "No tracked env files"
